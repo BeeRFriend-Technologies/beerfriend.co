@@ -1,10 +1,11 @@
 /* BeeRFriend: deep night sky, muted lavender and honey, original logo geometry. */
-@import url('./tokens.css');
+@import url('./tokens.css?v=20261112-moon');
 @import url('./base.css');
-@font-face{font-family:Paperlogy;src:url('assets/fonts/Paperlogy-400.woff2') format('woff2');font-weight:400;font-display:swap}
-@font-face{font-family:Paperlogy;src:url('assets/fonts/Paperlogy-700.woff2') format('woff2');font-weight:700;font-display:swap}
+@import url('./assets/fonts/wanted.css');
 
-html{color-scheme:dark;scroll-behavior:smooth;scroll-padding-top:var(--space-lg)}
+html{color-scheme:dark;scroll-behavior:auto;scroll-padding-top:var(--space-lg);scrollbar-width:none}
+body{scrollbar-width:none}
+html::-webkit-scrollbar,body::-webkit-scrollbar{display:none;width:0;height:0}
 body{word-break:keep-all;font-synthesis:none;position:relative;isolation:isolate}
 body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background-image:url('assets/night-sky.svg'),radial-gradient(ellipse at 80% 32%,rgb(74 47 106 / .2),transparent 55%),radial-gradient(ellipse at 10% 85%,rgb(33 52 80 / .16),transparent 60%);background-size:1600px 1200px,100% 100%,100% 100%;background-position:center top;}
 

@@ -13,7 +13,7 @@
   --color-rule: #333248;
   --color-accent: #65517f; --color-accent-ink: #ffffff; --color-focus: #c6afdf;
   --color-link: #c6afdf;
-  --font-display: "Paperlogy", Arial, sans-serif; --font-body: var(--font-display); --font-outlier: var(--font-body);
+  --font-display: "Wanted Sans", Arial, sans-serif; --font-body: var(--font-display); --font-outlier: var(--font-body);
   --radius-card: 16px; --radius-pill: 999px; --rule-hair: 1px; --shadow-card: none;
   --tracking-display: -0.02em;
   --color-field: var(--color-accent); --color-honey: #f6b747; --color-brand-deep: oklch(38% 0.07 305); --color-brand-light: oklch(78% 0.05 305);

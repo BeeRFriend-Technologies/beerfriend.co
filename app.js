@@ -24,7 +24,7 @@
     const controls = player.querySelector('.film-controls');
     const toggle = player.querySelector('.film-toggle');
     const sound = player.querySelector('.film-sound');
-    let inView = false, userPaused = false;
+    let inView = false, userPaused = false, previewActive = window.flightPreview?.active ?? true;
     video.controls = false;
     controls.hidden = false;
     const sync = () => {
@@ -43,12 +43,13 @@
     sound.addEventListener('click', () => { video.muted = !video.muted; sync(); });
     ['play', 'pause', 'ended', 'volumechange'].forEach(event => video.addEventListener(event, sync));
     video.addEventListener('ended', () => { userPaused = true; });
-    const autoPlay = () => { if (inView && !document.hidden && !userPaused && !reducedMotion.matches) play(); };
+    const autoPlay = () => { if (inView && previewActive && !document.hidden && !userPaused && !reducedMotion.matches) play(); };
     new IntersectionObserver(([entry]) => {
       inView = entry.isIntersecting && entry.intersectionRatio >= .55;
       if (inView) autoPlay(); else video.pause();
     }, { threshold: [0, .55] }).observe(video);
     document.addEventListener('visibilitychange', () => { if (document.hidden) video.pause(); else autoPlay(); });
+    document.addEventListener('flight-preview-state', event => { previewActive = event.detail.active; if (!previewActive) video.pause(); else autoPlay(); });
     reducedMotion.addEventListener('change', () => { if (reducedMotion.matches) video.pause(); else autoPlay(); });
     sync();
   }

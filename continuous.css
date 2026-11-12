@@ -1,0 +1,81 @@
+/* One camera, one sky, from the opening line through the final invitation. */
+body.continuous-flight{background:#060b14}
+.continuous-flight::before{display:none}
+.flight-world{position:fixed;inset:0;bottom:auto;height:100svh;z-index:-1;pointer-events:none;overflow:clip;background:#060b14}
+.flight-world::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(3,7,13,.86),rgba(3,7,13,.65) 42%,rgba(3,7,13,.13) 75%);opacity:var(--reading-shade,0)}
+.flight-world #flight-scene{transition:none}
+.continuous-flight.scene-ready .flight-fallback{visibility:hidden}
+.continuous-flight .journey,.continuous-flight .journey.is-enhanced{background:none;isolation:auto;height:100svh;min-height:560px}
+.continuous-flight .journey-stage{position:relative;top:auto;height:100%;min-height:0;overflow:visible}
+.continuous-flight .flight-panel{opacity:1;transform:none;will-change:auto}
+.continuous-flight .flight-scroll i{animation:none}
+.continuous-flight main>section:not(.journey){position:relative;background:none;border:0;padding-block:clamp(100px,14vh,180px)}
+.continuous-flight .company-intro,.continuous-flight .product-intro{grid-template-columns:1fr;gap:32px;max-width:850px}
+.continuous-flight .company-intro>p,.continuous-flight .product-intro-copy{max-width:48ch}
+.continuous-flight .company-principles{max-width:850px;gap:64px;margin-top:72px}
+.continuous-flight .company-principles>div,.continuous-flight .culture-values article,.continuous-flight .team-people article,.continuous-flight .culture-boundary,.continuous-flight .working-cycle li,.continuous-flight .site-footer,.continuous-flight .footer-bottom{border:0}
+.continuous-flight .product-intro-copy{display:block}
+.continuous-flight .product-brand{margin-bottom:20px}
+.continuous-flight .product-film{max-width:1100px}
+.continuous-flight .film-player,.continuous-flight #product-video{border-radius:12px}
+.continuous-flight .culture-heading{max-width:1060px;grid-template-columns:minmax(0,.8fr) minmax(0,1fr)}
+.continuous-flight .culture-photo{background:none;aspect-ratio:1.1;align-self:center;overflow:visible}
+.continuous-flight .culture-photo>img{mask-image:radial-gradient(ellipse,black 45%,transparent 73%);opacity:.85}
+.continuous-flight .culture-photo figcaption{background:none;bottom:-24px;padding:0 20px}
+.continuous-flight .culture-values{max-width:950px;margin-top:100px;row-gap:64px}
+.continuous-flight .culture-values article{padding-block:20px}
+.continuous-flight .working-style{max-width:900px;margin-top:160px}
+.continuous-flight .working-heading{grid-template-columns:1fr;max-width:680px;gap:32px}
+.continuous-flight .working-cycle{max-width:720px;gap:32px}
+.continuous-flight .working-cycle li{gap:12px}
+.continuous-flight .working-notes{max-width:850px}
+.continuous-flight .team-heading{max-width:850px;grid-template-columns:1fr;gap:28px}
+.continuous-flight .team-people{max-width:900px;display:grid;grid-template-columns:1fr 1fr;gap:64px}
+.continuous-flight .team-people article{display:flex;flex-direction:column;gap:16px;padding:0}
+.continuous-flight .person-field{padding:0}
+.continuous-flight .careers-section{min-height:85svh;display:flex;flex-direction:column;justify-content:center;align-items:flex-start}
+.continuous-flight .careers-heading{max-width:800px}
+.continuous-flight .careers-heading h2{font-size:clamp(2.2rem,4.3vw,4.6rem);line-height:1.28;font-weight:400;letter-spacing:-.055em}
+.continuous-flight .careers-heading h2 span{display:block;margin-left:1em}
+.continuous-flight .careers-heading .section-eyebrow{margin:0 0 28px}
+.continuous-flight .careers-heading h2+p{max-width:42ch;color:var(--color-ink-2)}
+.continuous-flight .site-footer{position:relative;background:none;padding-top:40px}
+.continuous-flight :is(.desktop-nav,#mobile-nav,.slide-controls) *{animation:none;transition:none}
+.continuous-flight .flight-apply span{transition:none}
+.continuous-flight .flight-opening h1{font-family:var(--font-display);font-weight:450;letter-spacing:-.065em;font-size:clamp(4.4rem,7vw,8.3rem)}
+.continuous-flight .flight-opening .quote-continuation{font-family:var(--font-body);font-weight:400;letter-spacing:-.025em}
+.continuous-flight h2{font-weight:550;letter-spacing:-.045em}
+.continuous-flight h3{font-weight:600;letter-spacing:-.025em}
+.continuous-flight .culture-values .value-name{font-family:var(--font-display);font-weight:450;letter-spacing:-.04em}
+.continuous-flight .careers-heading h2{font-weight:450;letter-spacing:-.05em}
+.continuous-flight .flight-intro{font-size:15px}
+@media(max-width:60rem){
+ .continuous-flight .culture-heading{grid-template-columns:1fr;max-width:650px;gap:64px}
+ .continuous-flight .culture-photo{width:min(85%,440px);margin-inline:auto;max-height:none}
+ .continuous-flight .company-principles{gap:40px}
+ .continuous-flight .team-people{gap:40px}
+}
+@media(max-width:45rem){
+ .flight-world::after{background:linear-gradient(90deg,rgba(3,7,13,.84),rgba(3,7,13,.72) 55%,rgba(3,7,13,.44))}
+ .continuous-flight main>section:not(.journey){padding-block:92px}
+ .continuous-flight .company-intro,.continuous-flight .product-intro{gap:28px}
+ .continuous-flight .company-principles{margin-top:56px;gap:48px}
+ .continuous-flight .company-principles>div{padding:0}
+ .continuous-flight .product-intro h2{font-size:clamp(1.8rem,7.5vw,2.5rem)}
+ .continuous-flight .product-film{margin-inline:-8px}
+ .continuous-flight .culture-values{row-gap:36px;margin-top:72px}
+ .continuous-flight .culture-values article{padding-block:12px}
+ .continuous-flight .working-style{margin-top:100px}
+ .continuous-flight .working-cycle{gap:12px 28px}
+ .continuous-flight .working-cycle li{font-size:14px}
+ .continuous-flight .team-people{grid-template-columns:1fr;gap:64px;margin-top:56px}
+ .continuous-flight .careers-section{min-height:90svh}
+ .continuous-flight .careers-heading h2{font-size:clamp(1.8rem,7.5vw,2.75rem)}
+ .continuous-flight .careers-heading h2 span{margin-left:.5em}
+ .continuous-flight .careers-heading p{font-size:14px}
+ .continuous-flight .site-footer{padding-top:16px}
+ .continuous-flight .flight-opening h1{font-size:clamp(3.25rem,12.8vw,4.8rem);letter-spacing:-.06em}
+ .continuous-flight .flight-intro{font-size:13px}
+}
+@media(max-height:700px) and (max-width:45rem){.continuous-flight .flight-opening h1{font-size:clamp(2.7rem,11.8vw,3.65rem)}.continuous-flight .flight-intro{font-size:11px}}
+@media(max-height:560px) and (min-width:46rem){.continuous-flight .journey,.continuous-flight .journey.is-enhanced{min-height:480px}}

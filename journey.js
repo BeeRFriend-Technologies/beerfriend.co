@@ -1,240 +1,286 @@
-(() => {
-  'use strict';
-  const journey = document.querySelector('.journey');
-  const canvas = document.querySelector('#flight-scene');
-  const context = canvas?.getContext('2d', { alpha: false });
-  if (!journey || !context) return;
+import * as THREE from './vendor/three.module.min.js';
 
-  const stage = journey.querySelector('.journey-stage');
-  const panels = [...journey.querySelectorAll('[data-flight-panel]')];
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  const clamp = (n, a = 0, b = 1) => Math.min(b, Math.max(a, n));
-  const mix = (a, b, t) => a + (b - a) * t;
-  const smooth = (a, b, n) => { const t = clamp((n - a) / (b - a)); return t * t * (3 - 2 * t); };
-  let seed = 41;
+// Continuous flight: 3D vehicle and camera, cinematic launch plate and atmospheric textures.
+const canvas = document.querySelector('#flight-scene');
+const clamp = THREE.MathUtils.clamp;
+const mix = THREE.MathUtils.lerp;
+const smooth = (a, b, n) => { const t = clamp((n - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'low-power' });
+} catch (error) {
+  console.warn('Candidate C: WebGL unavailable; retaining the existing static illustration.', error.message);
+}
+
+if (renderer && canvas) {
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = .92;
+  let flightLoop = null, contextLost = false;
+  const loader = new THREE.TextureLoader();
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('#07101b');
+  scene.fog = new THREE.FogExp2('#17232f', .0014);
+  const camera = new THREE.PerspectiveCamera(38, 1, .1, 14000);
+  const hemispheric = new THREE.HemisphereLight('#b8d5f3', '#3b291b', .72);
+  scene.add(hemispheric);
+  const sun = new THREE.DirectionalLight('#ffe6c9', 2.1);
+  sun.position.set(-300, 650, 500);
+  scene.add(sun);
+  const rim = new THREE.DirectionalLight('#8db9f2', 1.05);
+  rim.position.set(200, 100, -220);
+  scene.add(rim);
+
+  // A local procedural lighting environment makes metal respond to view angle.
+  const environmentCanvas = document.createElement('canvas');
+  environmentCanvas.width = 512; environmentCanvas.height = 256;
+  const ec = environmentCanvas.getContext('2d');
+  const eg = ec.createLinearGradient(0, 0, 0, 256);
+  eg.addColorStop(0, '#8eabc8'); eg.addColorStop(.45, '#c5ccd2');
+  eg.addColorStop(.53, '#394652'); eg.addColorStop(1, '#101925');
+  ec.fillStyle = eg; ec.fillRect(0, 0, 512, 256);
+  const light = ec.createRadialGradient(110, 85, 1, 110, 85, 125);
+  light.addColorStop(0, '#fff9e9'); light.addColorStop(1, '#b3c0cc00');
+  ec.fillStyle = light; ec.fillRect(0, 0, 512, 256);
+  const envTexture = new THREE.CanvasTexture(environmentCanvas);
+  envTexture.mapping = THREE.EquirectangularReflectionMapping;
+  envTexture.colorSpace = THREE.SRGBColorSpace;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const environment = pmrem.fromEquirectangular(envTexture);
+  scene.environment = environment.texture;
+  envTexture.dispose(); pmrem.dispose();
+
+  let seed = 1709;
   const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-  const stars = Array.from({ length: 155 }, () => ({ x: random(), y: random(), r: .25 + random() * 1.1, a: .15 + random() * .65 }));
-  const clouds = Array.from({ length: 20 }, () => ({ x: random(), y: random(), r: .12 + random() * .18 }));
-  const sparks = Array.from({ length: 35 }, () => ({ x: random() - .5, y: random(), s: random() }));
-  let width = 1, height = 1, mobile = false, progress = 0, target = 0;
-  let visible = true, frame = 0, lastDraw = 0, moon = null, earth = null, activePanel = -1;
-  let start = 0, distance = 1;
-  const rocket = new Image(); rocket.src = 'assets/launch-vehicle-real.png';
-  const moonMap = new Image(); moonMap.src = 'assets/moon-map.jpg';
-  const earthImage = new Image(); earthImage.src = 'assets/earth-globe.jpg';
-
-  const smoke = document.createElement('canvas'); smoke.width = smoke.height = 128;
-  const sc = smoke.getContext('2d');
-  const sg = sc.createRadialGradient(64, 64, 0, 64, 64, 64);
-  sg.addColorStop(0, 'rgba(160,166,179,.42)'); sg.addColorStop(.4, 'rgba(135,145,166,.16)'); sg.addColorStop(1, 'rgba(125,135,160,0)');
-  sc.fillStyle = sg; sc.fillRect(0, 0, 128, 128);
-
-  // Project the credited longitude/latitude color map once, then reuse the shaded sphere.
-  function makeMoon(image) {
-    const source = document.createElement('canvas'); source.width = image.width; source.height = image.height;
-    const src = source.getContext('2d', { willReadFrequently: true }); src.drawImage(image, 0, 0);
-    const data = src.getImageData(0, 0, source.width, source.height).data;
-    const sphere = document.createElement('canvas'); sphere.width = sphere.height = 640;
-    const out = sphere.getContext('2d'); const pixels = out.createImageData(640, 640);
-    for (let y = 0; y < 640; y++) for (let x = 0; x < 640; x++) {
-      const nx = (x + .5 - 320) / 320, ny = (y + .5 - 320) / 320;
-      const rr = nx * nx + ny * ny; if (rr > 1) continue;
-      const nz = Math.sqrt(1 - rr);
-      const u = Math.floor((Math.atan2(nx, nz) / (2 * Math.PI) + .5) * source.width) % source.width;
-      const v = Math.min(source.height - 1, Math.floor((Math.asin(ny) / Math.PI + .5) * source.height));
-      const si = (v * source.width + u) * 4, di = (y * 640 + x) * 4;
-      const light = .12 + .98 * Math.max(0, -.58 * nx - .32 * ny + .74 * nz);
-      pixels.data[di] = Math.min(255, data[si] * light * 1.18);
-      pixels.data[di + 1] = Math.min(255, data[si + 1] * light * 1.19);
-      pixels.data[di + 2] = Math.min(255, data[si + 2] * light * 1.22);
-      pixels.data[di + 3] = Math.min(255, (1 - Math.sqrt(rr)) * 320 * 255);
-    }
-    out.putImageData(pixels, 0, 0); return sphere;
+  const vector = (x, y, z) => new THREE.Vector3(x, y, z);
+  const paint = new THREE.MeshStandardMaterial({ color: '#d8d8d1', roughness: .64, metalness: .15, envMapIntensity: .38 });
+  const dark = new THREE.MeshStandardMaterial({ color: '#11171d', roughness: .48, metalness: .35 });
+  const silver = new THREE.MeshStandardMaterial({ color: '#b8c1c6', roughness: .24, metalness: .82, envMapIntensity: .85 });
+  const steel = new THREE.MeshStandardMaterial({ color: '#414c55', roughness: .52, metalness: .72 });
+  const brass = new THREE.MeshStandardMaterial({ color: '#8c6650', roughness: .42, metalness: .75 });
+  const paintCanvas=document.createElement('canvas');paintCanvas.width=128;paintCanvas.height=512;
+  const paintContext=paintCanvas.getContext('2d');const paintPixels=paintContext.createImageData(128,512);
+  for(let i=0;i<paintPixels.data.length;i+=4){const tone=217+random()*28;paintPixels.data[i]=tone;paintPixels.data[i+1]=tone;paintPixels.data[i+2]=tone-3;paintPixels.data[i+3]=255;}
+  paintContext.putImageData(paintPixels,0,0);
+  paintContext.strokeStyle='rgba(48,46,42,.08)';paintContext.lineWidth=1;
+  for(let n=0;n<50;n++){const x=random()*128,y=random()*512;paintContext.beginPath();paintContext.moveTo(x,y);paintContext.lineTo(x,y+10+random()*65);paintContext.stroke();}
+  paint.map=new THREE.CanvasTexture(paintCanvas);paint.map.colorSpace=THREE.SRGBColorSpace;
+  const rocket = new THREE.Group();
+  scene.add(rocket);
+  function mesh(geometry, material, parent, x = 0, y = 0, z = 0) {
+    const object = new THREE.Mesh(geometry, material);
+    object.position.set(x, y, z); parent.add(object); return object;
   }
-  moonMap.onload = () => { moon = makeMoon(moonMap); schedule(); };
-  earthImage.onload = () => { earth = earthImage; schedule(); };
-  rocket.onload = schedule;
-
-  function glow(x, y, radius, color, strength = 1) {
-    if (radius < 1 || strength <= 0) return;
-    const g = context.createRadialGradient(x, y, 0, x, y, radius);
-    g.addColorStop(0, color); g.addColorStop(1, 'transparent');
-    context.save(); context.globalAlpha *= strength; context.fillStyle = g;
-    context.fillRect(x - radius, y - radius, radius * 2, radius * 2); context.restore();
+  function cylinder(top, bottom, height, y, material = paint, segments = 48, parent = rocket) {
+    return mesh(new THREE.CylinderGeometry(top, bottom, height, segments), material, parent, 0, y, 0);
+  }
+  function beam(parent, from, to, radius, material) {
+    const delta = to.clone().sub(from);
+    const object = mesh(new THREE.CylinderGeometry(radius, radius, delta.length(), 6), material, parent);
+    object.position.copy(from).add(to).multiplyScalar(.5);
+    object.quaternion.setFromUnitVectors(vector(0, 1, 0), delta.normalize());
+    return object;
   }
 
-  function drawEarth(p) {
-    const alpha = smooth(.24, .39, p); if (!alpha) return;
-    const pullback = smooth(.32, .82, p);
-    const r = mix(Math.max(width * .85, height), Math.min(width, height) * .13, pullback);
-    const x = mix(width * .5, width * .13, pullback), y = mix(height * .9 + r * .86, height * .81, pullback);
-    context.save(); context.globalAlpha = alpha;
-    glow(x, y, r * 1.07, 'rgba(76,151,229,.42)');
-    context.beginPath(); context.arc(x, y, r, 0, Math.PI * 2); context.clip();
-    if (earth) context.drawImage(earth, earth.width * .058, earth.height * .058, earth.width * .884, earth.height * .884, x - r, y - r, r * 2, r * 2);
-    else { context.fillStyle = '#28465c'; context.fillRect(x - r, y - r, r * 2, r * 2); }
-    const shadow = context.createLinearGradient(x - r, y - r, x + r, y + r);
-    shadow.addColorStop(0, 'rgba(4,8,17,.1)'); shadow.addColorStop(.6, 'rgba(4,8,17,.5)'); shadow.addColorStop(1, 'rgba(4,8,17,.98)');
-    context.fillStyle = shadow; context.fillRect(x - r, y - r, r * 2, r * 2); context.restore();
-    context.save(); context.globalAlpha = alpha * .5; context.strokeStyle = '#8bb7e3'; context.lineWidth = Math.max(1, r * .003);
-    context.beginPath(); context.arc(x, y, r, Math.PI * 1.1, Math.PI * 1.8); context.stroke(); context.restore();
+  // Saturn-era staging, stringers, interstages, engine bells and four real fins.
+  cylinder(1.64, 1.64, 11.6, 7.4);
+  cylinder(1.66, 1.66, 1.25, 13.8, dark);
+  cylinder(1.61, 1.61, 7.2, 18);
+  cylinder(1.63, 1.63, .72, 22.0, silver);
+  cylinder(1.05, 1.61, 2.6, 23.65);
+  cylinder(1.05, 1.05, 4.65, 27.25);
+  cylinder(1.07, 1.07, .7, 29.85, dark);
+  cylinder(.77, 1.04, 1.15, 30.76, silver);
+  cylinder(.77, .77, 1.4, 32.03, silver);
+  cylinder(.10, .77, 1.48, 33.47, paint);
+  cylinder(.085, .085, 2.35, 35.35, steel, 12);
+  cylinder(0, .13, .68, 36.86, paint, 16);
+  for (let n = 0; n < 4; n++) {
+    const angle = n * Math.PI / 2 + Math.PI / 4;
+    const strip = mesh(new THREE.CylinderGeometry(1.652, 1.652, 3.0, 12, 1, true, angle, .39), dark, rocket, 0, 11.1, 0);
+    strip.material.side = THREE.DoubleSide;
+    mesh(new THREE.CylinderGeometry(1.616, 1.616, 2.5, 12, 1, true, angle, .48), dark, rocket, 0, 20.2, 0);
+    const shape = new THREE.Shape();
+    shape.moveTo(1.48, 0); shape.lineTo(3.38, .0); shape.lineTo(2.45, 2.4); shape.lineTo(1.48, 4.7); shape.closePath();
+    const fin = mesh(new THREE.ExtrudeGeometry(shape, { depth: .10, bevelEnabled: true, bevelSize: .03, bevelThickness: .02, bevelSegments: 1, steps: 1 }), silver, rocket, 0, 1.45, 0);
+    fin.rotation.y = angle;
+  }
+  const rings = new THREE.InstancedMesh(new THREE.TorusGeometry(1.648, .027, 4, 48), silver, 24);
+  const transform = new THREE.Object3D();
+  for (let n = 0; n < 24; n++) {
+    transform.position.set(0, 2.0 + n * .44, 0); transform.rotation.set(Math.PI / 2, 0, 0); transform.scale.setScalar(1);
+    transform.updateMatrix(); rings.setMatrixAt(n, transform.matrix);
+  }
+  rocket.add(rings);
+  const stringers = new THREE.InstancedMesh(new THREE.CylinderGeometry(.016, .016, 9.8, 4), silver, 40);
+  for (let n = 0; n < 40; n++) {
+    const a = n / 40 * Math.PI * 2;
+    transform.position.set(Math.sin(a) * 1.647, 7.2, Math.cos(a) * 1.647); transform.rotation.set(0, 0, 0);
+    transform.updateMatrix(); stringers.setMatrixAt(n, transform.matrix);
+  }
+  rocket.add(stringers);
+  for (const [x, z] of [[0, 0], [-.88, -.88], [.88, -.88], [-.88, .88], [.88, .88]]) {
+    const points = [[.27, 1.4], [.29, 1.12], [.36, .82], [.53, .32], [.65, 0]].map(([r, y]) => new THREE.Vector2(r, y));
+    const bell = mesh(new THREE.LatheGeometry(points, 24), steel, rocket, x, .2, z);
+    bell.material.side = THREE.DoubleSide;
+    mesh(new THREE.CylinderGeometry(.54, .54, .09, 24), brass, rocket, x, .22, z);
+    cylinder(.30, .3, .65, 1.45, steel, 16).position.set(x, 1.45, z);
+  }
+  for (let n = 0; n < 4; n++) {
+    const a = n * Math.PI / 2;
+    beam(rocket, vector(Math.cos(a) * .68, 32.9, Math.sin(a) * .68), vector(Math.cos(a) * .16, 35, Math.sin(a) * .16), .035, steel);
   }
 
-  function drawGround(p, time, rocketX) {
-    const lift = smooth(.07, .42, p), alpha = 1 - smooth(.27, .43, p);
-    if (!alpha) return;
-    const ground = height * (mobile ? .78 : .84);
-    context.save(); context.globalAlpha = alpha; context.translate(0, lift * height * .85);
-    glow(rocketX, ground, Math.min(width * .5, 420), 'rgba(213,134,70,.4)', 1 - lift * .5);
-    for (let layer = 0; layer < 3; layer++) {
-      context.beginPath(); context.moveTo(0, height * 1.3);
-      for (let x = 0; x <= width + 20; x += 20) {
-        const hill = Math.sin(x / width * 9 + layer) * 12 + Math.sin(x / width * 24 + layer) * 5;
-        context.lineTo(x, ground + layer * 22 + hill * (1 - Math.exp(-Math.pow((x - rocketX) / 130, 2))));
-      }
-      context.lineTo(width, height * 1.3); context.closePath();
-      context.fillStyle = ['#19202a', '#121923', '#0b111a'][layer]; context.fill();
-    }
-    // A road and lit pad locate the launch on solid ground, before the camera climbs.
-    context.fillStyle = '#1b2027'; context.beginPath(); context.moveTo(rocketX - 28, ground); context.lineTo(rocketX + 28, ground);
-    context.lineTo(rocketX + width * .15, height * 1.3); context.lineTo(rocketX - width * .2, height * 1.3); context.fill();
-    context.fillStyle = '#685546'; context.fillRect(rocketX - 36, ground - 3, 72, 4);
-    for (let n = 0; n < 10; n++) {
-      const x = rocketX + (n - 5) * (mobile ? 18 : 38), y = ground + 19 + Math.abs(n - 5) * 4;
-      glow(x, y, 8, 'rgba(240,184,100,.55)'); context.fillStyle = '#c69b61'; context.fillRect(x, y, 1.5, 1.5);
-    }
-    const towerH = Math.min(height * .2, 188), tx = rocketX - (mobile ? 30 : 43), tw = mobile ? 13 : 18;
-    context.strokeStyle = '#6b6560'; context.lineWidth = 1;
-    context.strokeRect(tx - tw, ground - towerH, tw, towerH);
-    for (let i = 0; i < 8; i++) {
-      const y = ground - i * towerH / 8;
-      context.beginPath(); context.moveTo(tx - tw, y); context.lineTo(tx, y - towerH / 8); context.moveTo(tx, y); context.lineTo(tx - tw, y - towerH / 8); context.stroke();
-    }
-    context.beginPath(); context.moveTo(tx, ground - towerH * .85); context.lineTo(rocketX - 6, ground - towerH * .85); context.stroke();
-    glow(tx - tw / 2, ground - towerH, 15, 'rgba(230,97,55,.4)');
-    context.fillStyle = '#d47a54'; context.fillRect(tx - tw / 2, ground - towerH - 2, 2, 2);
-    const ignition = .35 + smooth(0, .08, p) * .65;
-    for (let n = 0; n < 16; n++) {
-      const k = ((time * .07 + n / 16) % 1), side = n % 2 ? 1 : -1;
-      const size = 30 + k * (mobile ? 90 : 160);
-      context.globalAlpha = alpha * ignition * (1 - k) * .48;
-      context.drawImage(smoke, rocketX + side * k * size * 1.6 - size / 2, ground - size * .38 + k * 12, size, size * .55);
-    }
-    context.restore();
+  const flame = new THREE.Mesh(new THREE.CylinderGeometry(.82, 2.7, 19, 36, 10, true), new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    uniforms: { time: { value: 0 }, power: { value: .0 } },
+    vertexShader: `varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader: `uniform float time; uniform float power; varying vec2 vUv;
+      float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+      void main(){float h=1.-vUv.y; float n=hash(floor(vec2(vUv.x*31.,h*35.-time*24.)));
+        float filaments=.78+.22*sin(vUv.x*32.+sin(h*9.-time*6.)*.7);
+        float strength=pow(max(0.,1.-h),1.7)*(.65+.35*n)*filaments*power;
+        vec3 col=mix(vec3(.52,.72,1.),vec3(1.,.35,.055),smoothstep(.02,.3,h));
+        col=mix(vec3(1.,.96,.74),col,smoothstep(0.,.17,h));
+        gl_FragColor=vec4(col*2.8,strength*.78);}`,
+  }));
+  flame.position.y = -9.3; rocket.add(flame);
+  const engineLight = new THREE.PointLight('#ffb45f', 0, 65, 1.3);
+  engineLight.position.set(0, 0, 0); rocket.add(engineLight);
+
+  // The launch photo is anchored to the launch origin in the 3D camera's projection.
+  // It is behind the solid model, so the rocket retains its silhouette and changing light.
+  const launchMaterial = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, depthTest: true, toneMapped: false,
+    uniforms: { photo: { value: null }, anchor: { value: new THREE.Vector2() }, scale: { value: new THREE.Vector2() }, opacity: { value: 0 } },
+    vertexShader: `varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,1.,1.);}`,
+    fragmentShader: `uniform sampler2D photo;uniform vec2 anchor;uniform vec2 scale;uniform float opacity;varying vec2 vUv;
+      void main(){vec2 uv=(vUv-anchor)/scale+vec2(.768,.10);
+        if(uv.x<0.||uv.x>1.||uv.y<0.||uv.y>1.)discard;
+        vec4 texel=texture2D(photo,uv);
+        float mask=smoothstep(0.,.075,uv.y)*(1.-smoothstep(.40,.72,uv.y));
+        gl_FragColor=vec4(texel.rgb,mask*opacity);
+        #include <colorspace_fragment>
+      }`
+  });
+  const launchPlate = new THREE.Mesh(new THREE.PlaneGeometry(2,2),launchMaterial);
+  launchPlate.frustumCulled=false;launchPlate.renderOrder=-100;scene.add(launchPlate);
+  let plateReady=false;
+  loader.load('assets/launch-ground.webp',texture=>{texture.colorSpace=THREE.SRGBColorSpace;launchMaterial.uniforms.photo.value=texture;plateReady=true;flightLoop?.requestDraw();});
+  const launchAnchor=new THREE.Vector3();
+
+  // Sparse, textured steam layers give depth while keeping the early flight inexpensive.
+  const vaporTexture=loader.load('assets/launch-vapor.webp',()=>flightLoop?.requestDraw());
+  vaporTexture.colorSpace=THREE.SRGBColorSpace;
+  const steam=[];
+  for(let n=0;n<8;n++){
+    const material=new THREE.SpriteMaterial({map:vaporTexture,color:'#d6c7b5',opacity:.16,depthWrite:false,toneMapped:false});
+    const sprite=new THREE.Sprite(material);scene.add(sprite);steam.push(sprite);
+  }
+  const cloudLayer=new THREE.Group();scene.add(cloudLayer);
+  const cloudMaterials=[];
+  for(let n=0;n<12;n++){
+    const material=new THREE.SpriteMaterial({map:vaporTexture,color:'#aebbc9',opacity:.12,depthWrite:false,toneMapped:false});
+    cloudMaterials.push(material);
+    const sprite=new THREE.Sprite(material);
+    sprite.position.set((random()-.5)*350,140+random()*220,(random()-.5)*280);
+    const scale=100+random()*90;sprite.scale.set(scale,scale*.34,1);cloudLayer.add(sprite);
   }
 
-  function drawRocket(p, time, moonX, moonY, moonR) {
-    const launch = smooth(.015, .28, p), cruise = smooth(.58, 1, p);
-    const originX = width * (mobile ? .75 : .76), originY = height * (mobile ? .78 : .84);
-    // After liftoff the vehicle stays near the camera's anchor while the world recedes.
-    const midX = width * (mobile ? .68 : .74), midY = height * (mobile ? .63 : .59);
-    const x = mix(mix(originX, midX, launch), moonX - moonR * .82, cruise);
-    const y = mix(mix(originY, midY, launch), moonY + moonR * .82, cruise);
-    const rocketHeight = mix(Math.min(height * (mobile ? height < 700 ? .17 : .21 : .28), 260), mobile ? 64 : 88, smooth(.3, 1, p));
-    const rotation = smooth(.3, .95, p) * .92;
-    context.save(); context.translate(x, y); context.rotate(rotation);
-    const throttle = .06 + smooth(.005, .06, p) * .94;
-    const flameLength = (rocketHeight * .95) * throttle * (1 - smooth(.85, 1, p) * .8);
-    const flameWidth = rocketHeight * .045;
-    glow(0, 6, rocketHeight * .6, 'rgba(255,173,91,.22)', throttle);
-    const flicker = reduced.matches ? 1 : 1 + .08 * Math.sin(time * 17) + .05 * Math.sin(time * 31);
-    // Several soft exhaust filaments share light with the engine instead of a solid triangle.
-    const flame = context.createLinearGradient(0, 0, 0, flameLength);
-    flame.addColorStop(0, '#fffbea'); flame.addColorStop(.12, '#ffdda5'); flame.addColorStop(.5, 'rgba(232,145,73,.55)'); flame.addColorStop(1, 'rgba(166,75,37,0)');
-    context.strokeStyle = flame; context.lineCap = 'round';
-    for (let strand = 0; strand < 7; strand++) {
-      const sx = (strand - 3) * flameWidth * .16;
-      context.globalAlpha = .22 + (3 - Math.abs(strand - 3)) * .12;
-      context.lineWidth = flameWidth * (strand === 3 ? .7 : .35);
-      context.beginPath(); context.moveTo(sx, -rocketHeight * .015);
-      context.bezierCurveTo(sx * 1.5, flameLength * .25, sx * 2 + Math.sin(time * 9 + strand) * 2, flameLength * .6, sx * 2, flameLength * flicker * (1 - Math.abs(strand - 3) * .08)); context.stroke();
-    }
-    context.globalAlpha = 1;
-    context.fillStyle = '#fff5d2';
-    sparks.forEach(s => {
-      const v = (s.y + time * .65) % 1; context.globalAlpha = (1 - v) * throttle * .45;
-      context.fillRect(s.x * flameWidth * 2.5 * v, v * flameLength, s.s + .4, 1 + v * 3);
-    });
-    context.globalAlpha = 1;
-    if (rocket.complete && rocket.naturalWidth) context.drawImage(rocket, -rocketHeight / 3, -rocketHeight, rocketHeight * 2 / 3, rocketHeight);
-    context.restore();
-    return { x, y };
+  // Real equirectangular geography is mapped to a sphere, lit by the same sun as the vehicle.
+  const earthMaterial=new THREE.MeshStandardMaterial({color:'#bfcbd4',roughness:.93,metalness:0,envMapIntensity:.02});
+  const earth=mesh(new THREE.SphereGeometry(470,64,48),earthMaterial,scene,0,-474,0);
+  earth.rotation.y=1.5;
+  loader.load('assets/earth-map.webp',texture=>{texture.colorSpace=THREE.SRGBColorSpace;earthMaterial.map=texture;earthMaterial.needsUpdate=true;flightLoop?.requestDraw();});
+  const earthCloudMaterial=new THREE.MeshStandardMaterial({color:'#d5dee4',roughness:1,transparent:true,opacity:.52,depthWrite:false,envMapIntensity:.02});
+  const earthClouds=mesh(new THREE.SphereGeometry(471.2,48,32),earthCloudMaterial,scene,0,-474,0);
+  earthClouds.rotation.y=1.5;
+  loader.load('assets/earth-clouds.webp',texture=>{earthCloudMaterial.alphaMap=texture;earthCloudMaterial.needsUpdate=true;flightLoop?.requestDraw();});
+  function atmosphere(radius, color, opacity) {
+    const material = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.BackSide, blending: THREE.AdditiveBlending,
+      uniforms: { color: { value: new THREE.Color(color) }, opacity: { value: opacity } },
+      vertexShader: `varying vec3 vN;varying vec3 vV;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`,
+      fragmentShader: `uniform vec3 color;uniform float opacity;varying vec3 vN;varying vec3 vV;void main(){float f=pow(1.-abs(dot(normalize(vN),normalize(vV))),3.5);gl_FragColor=vec4(color,f*opacity);
+        #include <colorspace_fragment>
+      }` });
+    return new THREE.Mesh(new THREE.SphereGeometry(radius, 48, 32), material);
   }
+  const earthAir = atmosphere(474.5, '#76b8df', .26); earthAir.position.copy(earth.position); scene.add(earthAir);
+  const moonPosition = vector(1070, 1510, -1020);
+  const moonMaterial = new THREE.MeshStandardMaterial({ color: '#d7d5cd', roughness: .96, metalness: 0, envMapIntensity: .03 });
+  const moon = mesh(new THREE.SphereGeometry(130, 64, 48), moonMaterial, scene);
+  moon.position.copy(moonPosition); moon.rotation.y = -.45;
+  loader.load('assets/moon-map.webp', texture => { texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy()); moonMaterial.map = texture; moonMaterial.bumpMap = texture; moonMaterial.bumpScale = .36; moonMaterial.needsUpdate = true; flightLoop?.requestDraw(); });
 
+  const starPositions = new Float32Array(1250 * 3);
+  for (let n = 0; n < 1250; n++) {
+    const az = random() * Math.PI * 2, y = random() * 2 - 1, r = Math.sqrt(1 - y * y), radius = 6000 + random() * 1000;
+    starPositions.set([Math.cos(az) * r * radius, y * radius + 800, Math.sin(az) * r * radius], n * 3);
+  }
+  const starGeometry = new THREE.BufferGeometry(); starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+  const starMaterial = new THREE.PointsMaterial({ color: '#cdd9ed', size: 4.2, sizeAttenuation: true, transparent: true, opacity: .6, depthWrite: false });
+  scene.add(new THREE.Points(starGeometry, starMaterial));
+
+  const flightPath = new THREE.CatmullRomCurve3([vector(0, 2.3, 0), vector(0, 35, 0), vector(3, 110, -8), vector(32, 390, -55), vector(170, 770, -230), vector(465, 1110, -510), vector(850, 1360, -805)], false, 'centripetal');
+  const up = vector(0, 1, 0), rocketCenter = new THREE.Vector3(), focus = new THREE.Vector3(), position = new THREE.Vector3(), tangent = new THREE.Vector3();
+  const initialBackground = new THREE.Color('#070d17'), spaceBackground = new THREE.Color('#02050b');
+  let width = 1, height = 1, mobile = false;
   function draw(p, time) {
-    const space = smooth(.18, .53, p);
-    context.fillStyle = '#060b14'; context.fillRect(0, 0, width, height);
-    const sky = context.createLinearGradient(0, 0, 0, height);
-    sky.addColorStop(0, 'rgba(9,16,29,0)'); sky.addColorStop(.7, `rgba(32,53,75,${.65 * (1 - space)})`); sky.addColorStop(1, `rgba(77,74,67,${.35 * (1 - space)})`);
-    context.fillStyle = sky; context.fillRect(0, 0, width, height);
-    stars.forEach(s => {
-      const x = s.x * width, y = (s.y * height + p * height * .24) % height;
-      context.globalAlpha = s.a * (.2 + space * .8); context.fillStyle = '#cdd6e6';
-      context.fillRect(x, y, s.r, s.r);
-    }); context.globalAlpha = 1;
-    drawEarth(p);
-    const moonApproach = smooth(.48, 1, p);
-    const compact = mobile && height < 700;
-    const moonR = mix(mobile ? 9 : 16, Math.min(width * (mobile ? compact ? .26 : .31 : .2), height * .285), moonApproach);
-    const moonX = mix(width * .83, width * (mobile ? .72 : .78), moonApproach);
-    const moonY = mix(height * .21, height * (mobile ? compact ? .68 : .61 : .45), moonApproach);
-    context.save(); context.globalAlpha = .28 + space * .72;
-    if (moon) context.drawImage(moon, moonX - moonR, moonY - moonR, moonR * 2, moonR * 2);
-    else { context.fillStyle = '#96938d'; context.beginPath(); context.arc(moonX, moonY, moonR, 0, Math.PI * 2); context.fill(); }
-    context.restore();
-    drawGround(p, time, width * (mobile ? .75 : .76));
-    drawRocket(p, time, moonX, moonY, moonR);
-    const cloudAlpha = smooth(.07, .19, p) * (1 - smooth(.29, .49, p));
-    if (cloudAlpha > 0) {
-      clouds.forEach(c => {
-        const size = c.r * Math.max(width, height), y = c.y * height * 1.6 + (p - .27) * height * 3;
-        context.globalAlpha = cloudAlpha * .36; context.drawImage(smoke, c.x * width - size / 2, y - size / 2, size * 2, size);
-      }); context.globalAlpha = 1;
+    if (contextLost) return;
+    const flight = smooth(.02, 1, p);
+    flightPath.getPoint(flight, position); flightPath.getTangent(flight, tangent);
+    rocket.position.copy(position);
+    rocket.quaternion.setFromUnitVectors(up, tangent.normalize());
+    rocketCenter.copy(up).multiplyScalar(18).applyQuaternion(rocket.quaternion).add(position);
+    const orbit = smooth(.18, .50, p), approach = smooth(.63, 1, p);
+    focus.copy(rocketCenter).lerp(moonPosition, approach * .74);
+    const viewDistance = mix(mobile ? 181 : 145, mobile ? 237 : 195, orbit) + approach * (mobile ? 1000 : 530);
+    const azimuth = mix(.43, .16, orbit) - approach * .66;
+    const elevation = mix(-.06, 1.60, orbit) * (1 - approach) + approach * .18;
+    const horizontal = viewDistance / Math.sqrt(1 + elevation * elevation);
+    camera.position.set(focus.x + Math.sin(azimuth) * horizontal, focus.y + horizontal * elevation, focus.z + Math.cos(azimuth) * horizontal);
+    camera.lookAt(focus);
+    camera.setViewOffset(width, height, -width * mix(mobile ? .225 : .245, mobile ? .10 : .23, approach), -height * mix(mobile ? .205 : .17, mobile ? .17 : .04, approach), width, height);
+    scene.background.copy(initialBackground).lerp(spaceBackground, smooth(.12, .42, p));
+    scene.fog.density = .0014 * (1 - smooth(.11, .41, p));
+    camera.updateMatrixWorld();
+    launchAnchor.set(0,2.3,0).project(camera);
+    launchMaterial.uniforms.anchor.value.set(launchAnchor.x*.5+.5,launchAnchor.y*.5+.5);
+    launchMaterial.uniforms.scale.value.set(mobile?2.1:1.10,mobile?.86:.95);
+    launchMaterial.uniforms.opacity.value=plateReady?1-smooth(.13,.30,p):0;
+    launchPlate.visible=p<.30;
+    earth.visible=earthAir.visible=earthClouds.visible=p>.16;
+    cloudLayer.visible=p>.08&&p<.46;
+    if(cloudLayer.visible){const opacity=smooth(.08,.19,p)*(1-smooth(.29,.46,p))*.15;for(const material of cloudMaterials)material.opacity=opacity;}
+    starMaterial.opacity = .22 + smooth(.10, .55, p) * .65;
+    const throttle = smooth(.005, .07, p) * (1 - smooth(.86, 1, p) * .89);
+    flame.material.uniforms.time.value = time;
+    flame.material.uniforms.power.value = throttle;
+    flame.scale.y = .65 + throttle * .35;
+    engineLight.intensity = throttle * 90;
+    for(let n=0;n<steam.length;n++){
+      const sprite=steam[n];sprite.visible=p<.28;
+      if(!sprite.visible)continue;
+      const t=(n/steam.length+time*.025)%1,angle=n*2.399;
+      sprite.position.set(Math.cos(angle)*(2+t*17),1+t*3,Math.sin(angle)*(2+t*17));
+      const size=22+t*26;sprite.scale.set(size,size*.34,1);
+      sprite.material.opacity=(.10+throttle*.16)*(1-t*.6)*(1-smooth(.12,.28,p));
     }
-    const bottom = context.createLinearGradient(0, height * .8, 0, height);
-    bottom.addColorStop(0, 'transparent'); bottom.addColorStop(1, 'rgba(6,11,20,.82)');
-    context.fillStyle = bottom; context.fillRect(0, height * .8, width, height * .2);
+    renderer.render(scene, camera);
   }
-
-  function updateCopy(p) {
-    const phases = [1 - smooth(.12, .25, p), smooth(.26, .37, p) * (1 - smooth(.58, .7, p)), smooth(.7, .83, p)];
-    const next = p < .26 ? 0 : p < .7 ? 1 : 2;
-    panels.forEach((panel, i) => {
-      const amount = phases[i];
-      panel.style.opacity = String(amount);
-      panel.style.transform = `translate3d(0,${(1 - amount) * (p > [0, .5, 1][i] ? -36 : 36)}px,0)`;
-      if (activePanel !== next) { panel.inert = i !== next; panel.setAttribute('aria-hidden', String(i !== next)); }
-    });
-    activePanel = next;
-    journey.dataset.flightPhase = ['earth', 'atmosphere', 'moon'][next];
+  function resize(nextWidth, nextHeight) {
+    width = Math.max(1, nextWidth); height = Math.max(1, nextHeight); mobile = width <= 720;
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, mobile ? 1.35 : 1.65));
+    renderer.setSize(width, height, false); camera.aspect = width / height; camera.fov = mobile ? 40 : 38;
   }
-
-  function tick(now) {
-    frame = 0;
-    if (!visible || document.hidden) return;
-    if (now - lastDraw >= 32 || reduced.matches) {
-      lastDraw = now;
-      progress = reduced.matches ? 0 : Math.abs(target - progress) < .0004 ? target : mix(progress, target, .22);
-      draw(progress, reduced.matches ? 0 : now / 1000); updateCopy(progress);
-      journey.classList.add('scene-ready');
-    }
-    if (!reduced.matches) frame = requestAnimationFrame(tick);
-  }
-  function schedule() { if (!frame && visible && !document.hidden) frame = requestAnimationFrame(tick); }
-  function readScroll() { target = reduced.matches ? 0 : clamp((scrollY - start) / distance); schedule(); }
-  function resize() {
-    width = stage.clientWidth; height = stage.clientHeight; mobile = width <= 720;
-    const dpr = Math.min(devicePixelRatio || 1, mobile ? 1.5 : 1.8);
-    canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
-    context.setTransform(dpr, 0, 0, dpr, 0, 0);
-    start = scrollY + journey.getBoundingClientRect().top; distance = Math.max(1, journey.offsetHeight - height);
-    readScroll();
-  }
-  journey.classList.add('is-enhanced');
-  new ResizeObserver(resize).observe(stage);
-  new IntersectionObserver(([entry]) => { const wasVisible = visible; visible = entry.isIntersecting; if (visible) { readScroll(); if (!wasVisible) progress = target; schedule(); } else { cancelAnimationFrame(frame); frame = 0; } }).observe(journey);
-  addEventListener('scroll', readScroll, { passive: true });
-  document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(frame); frame = 0; } else schedule(); });
-  reduced.addEventListener('change', () => { progress = target = 0; activePanel = -1; resize(); });
-  resize();
-})();
+  canvas.addEventListener('webglcontextlost', event => {
+    event.preventDefault(); contextLost = true; flightLoop?.setEnabled(false);
+    document.body.classList.remove('scene-ready');
+    document.querySelector('.journey')?.classList.remove('scene-ready');
+  });
+  canvas.addEventListener('webglcontextrestored', () => {
+    contextLost = false; flightLoop?.setEnabled(true); flightLoop?.requestDraw();
+  });
+  canvas.dataset.renderer = `three-r${THREE.REVISION}-cinematic`;
+  flightLoop = window.createFlightLoop({ canvas, resize, draw });
+}

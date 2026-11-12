@@ -10,13 +10,20 @@
   <meta property="og:type" content="website">
   <title>BeeRFriend | UI/UX 공동창업자 모집</title>
   <link rel="icon" href="assets/beerfriend-mark.png" type="image/png">
-  <link rel="preload" href="assets/fonts/Paperlogy-700.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="journey.css">
-  <script src="app.js" defer></script>
-  <script src="journey.js" defer></script>
+  <link rel="preload" href="assets/fonts/WantedSans-page.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css?v=20261112-moon">
+  <link rel="stylesheet" href="journey.css?v=20261112-moon">
+  <link rel="stylesheet" href="continuous.css?v=20261112-moon">
+  <script src="flight-page.js?v=20261112-moon" defer></script>
+  <script src="app.js?v=20261112-moon" defer></script>
+  <script type="module" src="journey.js?v=20261112-moon"></script>
 </head>
-<body>
+<body class="continuous-flight">
+  <div class="flight-world" aria-hidden="true">
+        <div class="flight-fallback" aria-hidden="true"><img src="assets/launch-vehicle.webp" alt="" width="1024" height="1536"></div>
+        <canvas id="flight-scene" aria-hidden="true"></canvas>
+        <div class="flight-shade" aria-hidden="true"></div>
+  </div>
   <a class="skip-link" href="#main">본문으로 바로가기</a>
   <header class="site-header"><div class="nav-shell wrap">
   <a class="company-logo" href="#top" aria-label="BeeRFriend 회사 홈페이지 처음으로"><img src="assets/beerfriend-dark.svg" alt="BeeRFriend" width="178" height="57" fetchpriority="high"></a>
@@ -27,26 +34,13 @@
   <main id="main">
     <section class="journey" id="top" aria-labelledby="hero-title">
       <div class="journey-stage">
-        <div class="flight-fallback" aria-hidden="true"><img src="assets/launch-vehicle-real.png" alt="" width="1024" height="1536"></div>
-        <canvas id="flight-scene" aria-hidden="true"></canvas>
-        <div class="flight-shade" aria-hidden="true"></div>
+
         <div class="flight-copy wrap">
           <div class="flight-panel flight-opening" data-flight-panel="0">
             <p class="flight-eyebrow" lang="en">A SMALL TEAM. A GIANT LEAP.</p>
             <h1 id="hero-title" lang="en"><span>Shoot for</span> <span>the moon.</span></h1>
             <p class="quote-continuation" lang="en">Even if you miss,<br> you'll land among the stars.</p>
             <p class="flight-intro">더 멀리 가고 싶은 사람들이 모였습니다.<br> AI로 새로운 일상을 만드는 팀, BeeRFriend.</p>
-          </div>
-          <div class="flight-panel" data-flight-panel="1" inert aria-hidden="true">
-            <p class="flight-eyebrow" lang="en">BEYOND THE FAMILIAR.</p>
-            <h2>익숙한 궤도를<br><span>벗어나.</span></h2>
-            <p>당연했던 경험에 질문을 던지고,<br> 아직 없던 답을 직접 만듭니다.</p>
-          </div>
-          <div class="flight-panel" data-flight-panel="2" inert aria-hidden="true">
-            <p class="flight-eyebrow" lang="en">THE NEXT CHAPTER IS OURS.</p>
-            <h2>닿을 수 없던 곳을,<br><span>우리의 다음으로.</span></h2>
-            <p>함께 Moonshot을 현실로 만들<br> UI/UX 공동창업자를 찾습니다.</p>
-            <a class="flight-apply" href="apply.html">공동창업자 지원 <span aria-hidden="true">↗</span></a>
           </div>
         </div>
         <div class="flight-footer wrap">
@@ -59,6 +53,7 @@
 
 
     <section class="company-section wrap" id="company" aria-labelledby="company-title">
+      <p class="section-eyebrow" lang="en">BEYOND THE FAMILIAR.</p>
       <div class="company-intro"><h2 class="offset-heading" id="company-title"><span>좋아하는 세계를,</span> <span>매일의 일상으로.</span></h2><p>작품이 끝나도, 좋아하는 마음은 남습니다.<br> BeeRFriend는 그 마음이 새로운 경험으로 이어질 방법을 고민합니다.</p></div>
       <div class="company-principles"><div><img class="principle-icon" src="assets/icons/chat.svg" alt="" width="40" height="40"><h3>마음을 나누는 대화</h3><p>가벼운 안부부터 길었던 하루의 이야기까지.<br> 편안하게 말을 건넬 수 있는 경험을 고민합니다.</p></div><div><img class="principle-icon" src="assets/icons/memory.svg" alt="" width="40" height="40"><h3>다시 만나고 싶은 순간</h3><p>화면을 닫은 뒤에도 문득 생각나는 대화.<br> 기술로 일상에 새로운 즐거움을 더합니다.</p></div></div>
     </section>
@@ -103,7 +98,7 @@
     </div></section>
 
     <section class="careers-section invitation-section wrap" id="careers" aria-labelledby="careers-title">
-      <div class="careers-heading"><h2 id="careers-title">함께 Moonshot을 현실로 만들<br> 공동창업자를 찾습니다.</h2><p>크게 꿈꾸고, 빠르게 배우고, 끝내 만들어내는 사람들.<br> BeeRFriend의 다음 도약을 함께 만들어 주세요.</p></div>
+      <div class="careers-heading"><p class="section-eyebrow" lang="en">THE NEXT CHAPTER IS OURS.</p><h2 id="careers-title">닿을 수 없던 곳을,<br><span>우리의 다음으로.</span></h2><p>함께 Moonshot을 현실로 만들<br> UI/UX 공동창업자를 찾습니다.</p></div>
       <a class="button secondary" href="apply.html">UI/UX 공동창업자 지원</a>
     </section>
   </main>
