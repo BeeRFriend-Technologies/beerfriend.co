@@ -1,0 +1,24 @@
+:root {
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --text-xs: 0.8125rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.25rem; --text-xl: 1.5625rem; --text-2xl: 1.953rem; --text-3xl: 2.441rem;
+  --text-display-s: clamp(2.25rem, 4vw + 0.5rem, 3.75rem); --text-display: clamp(3rem, 6.5vw, 6.5rem);
+  --text-section: clamp(2rem, 2.5vw + 1rem, 3.5rem); --text-title: clamp(1.25rem, 0.75vw + 0.875rem, 1.625rem); --text-lead: clamp(1.125rem, 0.35vw + 1rem, 1.375rem);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
+  --color-error: #ffb4ab; --color-success: #9ed8b4;
+  --container: 1440px; --gutter: 64px; --gap-columns: 32px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
+  --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
+  --color-paper: #090b14; --color-paper-2: #111422; --color-paper-3: #202235;
+  --color-ink: #f0edf5; --color-ink-2: #d2ccdf; --color-muted: #aea9bf;
+  --color-rule: #333248;
+  --color-accent: #65517f; --color-accent-ink: #ffffff; --color-focus: #c6afdf;
+  --color-link: #c6afdf;
+  --font-display: "Paperlogy", Arial, sans-serif; --font-body: var(--font-display); --font-outlier: var(--font-body);
+  --radius-card: 16px; --radius-pill: 999px; --rule-hair: 1px; --shadow-card: none;
+  --tracking-display: -0.02em;
+  --color-field: var(--color-accent); --color-honey: #f6b747; --color-brand-deep: oklch(38% 0.07 305); --color-brand-light: oklch(78% 0.05 305);
+  --color-on-brand: #ffffff; --color-on-brand-muted: oklch(93% 0.015 305);
+  --color-product: #191a1c; --color-product-ink: #f2f0ed; --color-product-muted: #b6b4b1; --color-product-line: #36373b;
+  --color-overlay: oklch(18% 0.01 305 / 0.7);
+  --radius-control: 8px; --radius-dialog: 24px; --header-height: 80px; --space-columns: 32px;
+}
