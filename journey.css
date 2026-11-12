@@ -1,0 +1,67 @@
+/* Earth to Moon. The scene follows native scrolling, with a portrait composition on phones. */
+.journey{position:relative;isolation:isolate;background:#070c15;min-height:100svh}
+.journey.is-enhanced{height:340svh}
+.journey-stage{position:sticky;top:0;height:100svh;min-height:600px;overflow:clip}
+#flight-scene,.flight-fallback,.flight-shade{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#flight-scene{opacity:0;transition:opacity .4s}
+.scene-ready #flight-scene{opacity:1}
+.flight-fallback{background:radial-gradient(ellipse at 76% 85%,#634330 0,transparent 30%),linear-gradient(#070c15 30%,#1b2d40 80%,#10151d 80%)}
+.flight-fallback img{position:absolute;left:74%;bottom:18%;width:auto;height:24%}
+.flight-shade{background:linear-gradient(90deg,rgb(5 9 17 / .58),transparent 65%)}
+.flight-copy{height:100%;position:relative;pointer-events:none}
+.flight-panel{position:absolute;top:23%;left:var(--gutter);right:var(--gutter);max-width:780px;opacity:0;transform:translate3d(0,50px,0);will-change:transform,opacity}
+.flight-panel[data-flight-panel="0"]{opacity:1;transform:none}
+.flight-panel a{pointer-events:auto}
+.flight-eyebrow{color:#cbbfaa;font-family:Arial,sans-serif;font-size:11px;font-weight:400;letter-spacing:.2em;margin-bottom:28px}
+.flight-opening h1{font-family:Arial,Helvetica,sans-serif;font-weight:400;font-size:clamp(4.5rem,7.3vw,8.5rem);letter-spacing:-.075em;line-height:.98;max-width:none;text-wrap:initial}
+.flight-opening h1 span{display:block}
+.flight-opening h1 span+span{padding-left:clamp(32px,4.5vw,72px);font-size:1.13em}
+.flight-opening .quote-continuation{font-family:Arial,sans-serif;font-size:clamp(1.125rem,1.5vw,1.5rem);font-weight:400;line-height:1.4;letter-spacing:-.02em;color:#d8d5d0;margin-top:28px}
+.flight-intro{font-size:14px;line-height:1.8;color:#b7b8bf;margin-top:32px}
+.flight-panel h2{font-size:clamp(2.5rem,4.5vw,4.5rem);font-weight:400;line-height:1.3;letter-spacing:-.055em;max-width:none}
+.flight-panel h2 span{display:inline-block;margin-left:1em}
+.flight-panel>h2+p{margin-top:28px;line-height:1.8;color:#c6c7cd;font-size:16px}
+.flight-apply{display:inline-flex;align-items:center;justify-content:space-between;gap:56px;border-bottom:1px solid #ab977d;padding:14px 0;min-height:48px;font-size:15px;margin-top:28px;color:#f3dfbf}
+.flight-apply span{font-family:Arial,sans-serif;font-size:22px;transition:transform .3s}
+.flight-apply:hover span{transform:translate(3px,-3px)}
+.flight-footer{position:absolute;bottom:32px;left:0;right:0;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.flight-skip{display:inline-flex;min-height:44px;align-items:center;gap:32px;font-size:13px;color:#d2d4d9}
+.flight-stops{position:relative;display:flex;gap:32px;padding-bottom:12px;border-bottom:1px solid #ffffff30}
+.flight-stops button{min-height:44px;display:flex;align-items:center;gap:10px;padding:0 2px;font-size:13px;color:#9198a6}
+.flight-stops button span{font:10px/1 Arial,sans-serif;color:#7e8694}
+.flight-stops button[aria-current]{color:#f5e3c6}
+.flight-stops button[aria-current] span{color:#d3b68d}
+.flight-progress{position:absolute;left:0;bottom:-1px;width:100%;height:1px;background:#d6b783;transform:scaleX(var(--flight-progress,.02));transform-origin:left}
+.flight-scroll{font:9px/1 Arial,sans-serif;letter-spacing:.15em;color:#bbc1c9;display:flex;gap:24px;align-items:center}
+.flight-scroll i{font-style:normal;font-size:22px;animation:launch-cue 2s ease-in-out infinite}
+.flight-nojs{position:absolute;bottom:110px;left:var(--gutter);right:var(--gutter);font-size:14px}
+.flight-nojs a{text-decoration:underline}
+.journey:not(.is-enhanced) .flight-stops,.journey:not(.is-enhanced) .flight-scroll{display:none}
+@keyframes launch-cue{50%{transform:translateY(7px)}}
+@media(min-width:1600px){.flight-panel{top:25%}}
+@media(max-width:60rem){.flight-panel{top:22%;max-width:65%}.flight-opening h1{font-size:clamp(4.5rem,9vw,6.5rem)}.flight-scroll{display:none}.flight-panel h2{font-size:clamp(2.25rem,4.5vw,3.5rem)}}
+@media(max-width:45rem){
+ .journey.is-enhanced{height:300svh}
+ .journey-stage{min-height:560px}
+ .flight-shade{background:linear-gradient(180deg,rgb(5 9 17 / .2),transparent 55%,rgb(5 9 17 / .1))}
+ .flight-panel{top:calc(var(--header-height) + 40px);left:24px;right:24px;max-width:none}
+ .flight-eyebrow{font-size:9px;letter-spacing:.16em;margin-bottom:20px}
+ .flight-opening h1{font-size:clamp(3.35rem,13vw,5rem);line-height:1.03;letter-spacing:-.065em}
+ .flight-opening h1 span+span{font-size:1.13em;padding-left:24px}
+ .flight-opening .quote-continuation{font-size:16px;line-height:1.45;margin-top:22px}
+ .flight-intro{font-size:12px;line-height:1.75;margin-top:22px}
+ .flight-panel h2{font-size:clamp(1.8rem,7.7vw,3rem);line-height:1.4;letter-spacing:-.055em}
+ .flight-panel h2 span{margin-left:.65em}
+ .flight-panel>h2+p{font-size:14px;margin-top:20px}
+ .flight-apply{font-size:14px;gap:48px;margin-top:18px}
+ .flight-footer{bottom:max(20px,env(safe-area-inset-bottom));padding-inline:24px;display:grid;grid-template-columns:1fr;gap:6px}
+ .flight-skip{justify-self:start;font-size:12px;gap:24px;min-height:38px}
+ .flight-stops{justify-content:space-between;gap:16px;padding-bottom:6px}
+ .flight-stops button{font-size:11px;min-height:40px;gap:7px}
+ .flight-stops button span{font-size:9px}
+ .flight-fallback img{left:73%;bottom:24%;height:20%}
+}
+@media(max-width:360px){.flight-panel{left:20px;right:20px;top:104px}.flight-eyebrow{font-size:8px}.flight-opening h1{font-size:3.15rem}.flight-opening .quote-continuation{font-size:14px}.flight-intro{font-size:11px}.flight-footer{padding-inline:20px}}
+@media(max-height:700px) and (max-width:45rem){.flight-panel{top:96px}.flight-eyebrow{margin-bottom:16px}.flight-opening h1{font-size:clamp(2.8rem,12vw,3.8rem)}.flight-opening .quote-continuation{font-size:14px;margin-top:16px}.flight-intro{margin-top:16px;max-width:calc(100% - 100px);font-size:11px}.flight-intro br{display:none}.flight-panel h2{font-size:clamp(1.6rem,7.2vw,2.25rem)}.flight-panel>h2+p{margin-top:16px;font-size:13px}.flight-apply{font-size:13px;margin-top:10px;gap:32px}.flight-footer{bottom:12px}}
+@media(max-height:650px) and (min-width:46rem){.journey-stage{min-height:480px}.flight-panel{top:100px}.flight-opening h1{font-size:4rem}.flight-eyebrow{margin-bottom:16px}.flight-opening .quote-continuation{margin-top:16px;font-size:16px}.flight-intro{margin-top:16px;font-size:12px}.flight-panel h2{font-size:2.5rem}.flight-panel>h2+p{margin-top:16px}.flight-footer{bottom:16px}.flight-apply{margin-top:12px}}
+@media(prefers-reduced-motion:reduce){.journey.is-enhanced{height:auto}.journey-stage{position:relative}.flight-panel{will-change:auto}.flight-scroll{display:none}.flight-stops{display:none}.flight-intro::after{content:'함께할 UI/UX 공동창업자를 찾습니다.';display:block;margin-top:8px}}
