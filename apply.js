@@ -11,11 +11,11 @@
   const meetingSelection = document.querySelector('#meeting-selection');
   const meetingError = document.querySelector('#meeting-error');
   const postedOn = document.querySelector('#opening-date').dateTime;
-  const slotOptions = [
-    { label: '오전', time: '10:00–12:00', short: '10–12시', end: '12:00' },
-    { label: '오후', time: '13:00–18:00', short: '13–18시', end: '18:00' },
-    { label: '저녁', time: '18:00–21:00', short: '18–21시', end: '21:00' }
-  ];
+  const slotOptions = [10, 11, 13, 14, 15, 16, 17, 18, 19, 20].map(hour => {
+    const start = String(hour).padStart(2, '0') + ':00';
+    const end = String(hour + 1).padStart(2, '0') + ':00';
+    return { time: start + '–' + end, start, end };
+  });
   const dateFormat = new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric', weekday: 'short', timeZone: 'UTC' });
   const opening = new Date(postedOn + 'T00:00:00Z');
   const lastDay = new Date(opening); lastDay.setUTCDate(lastDay.getUTCDate() + 13);
@@ -23,26 +23,30 @@
   for (let day = 0; day < 14; day++) {
     const date = new Date(opening); date.setUTCDate(date.getUTCDate() + day);
     const iso = date.toISOString().slice(0, 10);
-    const row = document.createElement('div'); row.className = 'meeting-day';
-    const label = document.createElement('span'); label.className = 'meeting-date'; label.textContent = dateFormat.format(date); row.append(label);
+    const row = document.createElement('details'); row.className = 'meeting-day';
+    const label = document.createElement('summary'); label.className = 'meeting-date';
+    const dateTitle = document.createElement('span'); dateTitle.textContent = dateFormat.format(date);
+    const selectionCount = document.createElement('span'); selectionCount.className = 'meeting-count'; selectionCount.textContent = '시간 선택';
+    label.append(dateTitle, selectionCount); row.append(label);
+    const options = document.createElement('div'); options.className = 'meeting-options';
     for (const slot of slotOptions) {
       const control = document.createElement('label'); control.className = 'meeting-option';
       const input = document.createElement('input'); input.type = 'checkbox'; input.className = 'meeting-slot';
       input.value = iso + ' ' + slot.time + ' (한국 시간)';
-      input.dataset.ends = iso + 'T' + slot.end + ':00+09:00';
-      input.setAttribute('aria-label', iso + ' ' + slot.label + ' ' + slot.time);
-      const title = document.createElement('span'); title.textContent = slot.label;
-      const time = document.createElement('small'); time.textContent = slot.short;
-      control.append(input, title, time); row.append(control);
+      input.dataset.starts = iso + 'T' + slot.start + ':00+09:00';
+      input.setAttribute('aria-label', iso + ' ' + slot.time + ' 첫 미팅 1시간');
+      const title = document.createElement('span'); title.textContent = slot.start;
+      const time = document.createElement('small'); time.textContent = '–' + slot.end;
+      control.append(input, title, time); options.append(control);
     }
-    meetingSlots.append(row);
+    row.append(options); meetingSlots.append(row);
   }
   let meetingExpired = false;
   function syncMeeting() {
     const now = Date.now();
     const inputs = [...meetingSlots.querySelectorAll('input')];
     inputs.forEach(input => {
-      input.disabled = Date.parse(input.dataset.ends) <= now;
+      input.disabled = Date.parse(input.dataset.starts) <= now;
       if (input.disabled) input.checked = false;
       input.setCustomValidity('');
     });
@@ -51,10 +55,17 @@
     meetingExpired = !firstAvailable;
     if (firstAvailable) firstAvailable.setCustomValidity(selected.length ? '' : '첫 미팅 가능한 시간대를 한 개 이상 선택해 주세요.');
     meetingSelection.value = selected.join('\n');
+    meetingSlots.querySelectorAll('.meeting-day').forEach(day => {
+      const count = day.querySelectorAll('input:checked').length;
+      const unavailable = !day.querySelector('input:not(:disabled)');
+      day.querySelector('.meeting-count').textContent = unavailable ? '선택 마감' : count ? count + '개 선택' : '시간 선택';
+      day.classList.toggle('is-expired', unavailable);
+    });
     meetingError.textContent = meetingExpired ? '이 공고의 미팅 선택 기간이 지났습니다. hello@beerfriend.co로 다음 모집 일정을 문의해 주세요.' : '';
   }
   meetingSlots.addEventListener('change', syncMeeting);
   syncMeeting();
+  meetingSlots.querySelector('input:not(:disabled)')?.closest('details').setAttribute('open', '');
   function syncPortfolio() {
     const files = [...portfolioFiles.files];
     const cvs = [...cvFiles.files];
@@ -98,6 +109,7 @@
     requiredText.forEach(field => field.setCustomValidity(field.value.trim() ? '' : '내용을 입력해 주세요. 해당 사항이 없다면 ‘없음’이라고 적어주세요.'));
     const phone = document.querySelector('#applicant-phone');
     if (phone.value.trim() && phone.value.replace(/\D/g, '').length < 7) phone.setCustomValidity('연락 가능한 전화번호를 입력해 주세요.');
+    if (!meetingSelection.value) meetingSlots.querySelector('input:not(:disabled)')?.closest('details').setAttribute('open', '');
     if (meetingExpired || !form.reportValidity()) return;
     form.elements.namedItem('name').value = form.elements.namedItem('name').value.trim();
     form.elements.namedItem('email').value = form.elements.namedItem('email').value.trim();

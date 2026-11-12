@@ -7,7 +7,6 @@
 
   const stage = journey.querySelector('.journey-stage');
   const panels = [...journey.querySelectorAll('[data-flight-panel]')];
-  const stops = [...journey.querySelectorAll('[data-flight-stop]')];
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const clamp = (n, a = 0, b = 1) => Math.min(b, Math.max(a, n));
   const mix = (a, b, t) => a + (b - a) * t;
@@ -20,7 +19,7 @@
   let width = 1, height = 1, mobile = false, progress = 0, target = 0;
   let visible = true, frame = 0, lastDraw = 0, moon = null, earth = null, activePanel = -1;
   let start = 0, distance = 1;
-  const rocket = new Image(); rocket.src = 'assets/launch-vehicle.svg';
+  const rocket = new Image(); rocket.src = 'assets/launch-vehicle-real.png';
   const moonMap = new Image(); moonMap.src = 'assets/moon-map.jpg';
   const earthImage = new Image(); earthImage.src = 'assets/earth-globe.jpg';
 
@@ -134,23 +133,30 @@
     const rocketHeight = mix(Math.min(height * (mobile ? height < 700 ? .17 : .21 : .28), 260), mobile ? 64 : 88, smooth(.3, 1, p));
     const rotation = smooth(.3, .95, p) * .92;
     context.save(); context.translate(x, y); context.rotate(rotation);
-    const throttle = .12 + smooth(0, .06, p) * .88;
-    const flameLength = (rocketHeight * .85) * throttle * (1 - smooth(.85, 1, p) * .8);
-    const flameWidth = rocketHeight * .07;
+    const throttle = .06 + smooth(.005, .06, p) * .94;
+    const flameLength = (rocketHeight * .95) * throttle * (1 - smooth(.85, 1, p) * .8);
+    const flameWidth = rocketHeight * .045;
     glow(0, 6, rocketHeight * .6, 'rgba(255,173,91,.22)', throttle);
     const flicker = reduced.matches ? 1 : 1 + .08 * Math.sin(time * 17) + .05 * Math.sin(time * 31);
-    const flame = context.createLinearGradient(0, -4, 0, flameLength);
-    flame.addColorStop(0, '#ffffe6'); flame.addColorStop(.18, '#ffe7ab'); flame.addColorStop(.5, '#e99a54'); flame.addColorStop(1, 'rgba(208,97,51,0)');
-    context.fillStyle = flame; context.beginPath(); context.moveTo(-flameWidth / 2, -4);
-    context.bezierCurveTo(-flameWidth * 1.2, flameLength * .2, -flameWidth * .7, flameLength * .65, 0, flameLength * flicker);
-    context.bezierCurveTo(flameWidth * .7, flameLength * .65, flameWidth * 1.2, flameLength * .2, flameWidth / 2, -4); context.fill();
+    // Several soft exhaust filaments share light with the engine instead of a solid triangle.
+    const flame = context.createLinearGradient(0, 0, 0, flameLength);
+    flame.addColorStop(0, '#fffbea'); flame.addColorStop(.12, '#ffdda5'); flame.addColorStop(.5, 'rgba(232,145,73,.55)'); flame.addColorStop(1, 'rgba(166,75,37,0)');
+    context.strokeStyle = flame; context.lineCap = 'round';
+    for (let strand = 0; strand < 7; strand++) {
+      const sx = (strand - 3) * flameWidth * .16;
+      context.globalAlpha = .22 + (3 - Math.abs(strand - 3)) * .12;
+      context.lineWidth = flameWidth * (strand === 3 ? .7 : .35);
+      context.beginPath(); context.moveTo(sx, -rocketHeight * .015);
+      context.bezierCurveTo(sx * 1.5, flameLength * .25, sx * 2 + Math.sin(time * 9 + strand) * 2, flameLength * .6, sx * 2, flameLength * flicker * (1 - Math.abs(strand - 3) * .08)); context.stroke();
+    }
+    context.globalAlpha = 1;
     context.fillStyle = '#fff5d2';
     sparks.forEach(s => {
       const v = (s.y + time * .65) % 1; context.globalAlpha = (1 - v) * throttle * .45;
       context.fillRect(s.x * flameWidth * 2.5 * v, v * flameLength, s.s + .4, 1 + v * 3);
     });
     context.globalAlpha = 1;
-    if (rocket.complete && rocket.naturalWidth) context.drawImage(rocket, -rocketHeight * .1, -rocketHeight, rocketHeight * .2, rocketHeight);
+    if (rocket.complete && rocket.naturalWidth) context.drawImage(rocket, -rocketHeight / 3, -rocketHeight, rocketHeight * 2 / 3, rocketHeight);
     context.restore();
     return { x, y };
   }
@@ -199,11 +205,7 @@
       panel.style.transform = `translate3d(0,${(1 - amount) * (p > [0, .5, 1][i] ? -36 : 36)}px,0)`;
       if (activePanel !== next) { panel.inert = i !== next; panel.setAttribute('aria-hidden', String(i !== next)); }
     });
-    if (activePanel !== next) {
-      stops.forEach((button, i) => { if (i === next) button.setAttribute('aria-current', 'step'); else button.removeAttribute('aria-current'); });
-      activePanel = next;
-    }
-    journey.style.setProperty('--flight-progress', String(.02 + p * .98));
+    activePanel = next;
     journey.dataset.flightPhase = ['earth', 'atmosphere', 'moon'][next];
   }
 
@@ -229,9 +231,6 @@
     readScroll();
   }
   journey.classList.add('is-enhanced');
-  stops.forEach(button => button.addEventListener('click', () => {
-    scrollTo({ top: start + distance * Number(button.dataset.flightStop), behavior: reduced.matches ? 'instant' : 'smooth' });
-  }));
   new ResizeObserver(resize).observe(stage);
   new IntersectionObserver(([entry]) => { const wasVisible = visible; visible = entry.isIntersecting; if (visible) { readScroll(); if (!wasVisible) progress = target; schedule(); } else { cancelAnimationFrame(frame); frame = 0; } }).observe(journey);
   addEventListener('scroll', readScroll, { passive: true });
